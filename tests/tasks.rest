@@ -1,0 +1,43 @@
+@Host= http://localhost
+
+@Port= 3000
+
+@Server= {{Host}}:{{Port}}
+
+@CurrentID= 2
+
+### GET all tasks
+GET {{Server}}/api/tasks
+Content-Type: application/json
+
+###get task by id
+GET {{Server}}/api/tasks/{{CurrentID}}
+Content-Type: application/json
+
+###post new task
+POST {{Server}}/api/tasks
+Content-Type: application/json
+
+{
+  "title": "New Task",
+  "description": "This is a new task",
+  "deadline": "2023-12-31",
+}
+####patch task by id
+PATCH {{Server}}/api/tasks/{{CurrentID}}
+Content-Type: application/json
+
+{
+  "title": "Updated Task",
+  "description": "This is an updated task",
+  "deadline": "2023-12-31",
+  "completed": true
+}
+
+###delete task by id
+DELETE {{Server}}/api/tasks/{{CurrentID}}
+Content-Type: application/json
+
+###delete all tasks
+DELETE {{Server}}/api/tasks
+Content-Type: application/json
