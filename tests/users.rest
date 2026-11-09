@@ -16,7 +16,7 @@ POST {{server}}/login
 Content-Type: application/json
 
 {
-    "email": "tesztelematesztelnivalot@gmail.com",
+    "email": "newuser2142142@example.com",
     "password": "TitkosJelszo2026!"
 }
 
@@ -29,7 +29,7 @@ Content-Type: application/json
 
 {
     "name": "Teszt Elek",
-    "email": "newuser@example.com",
+    "email": "newuser2142142@example.com",
     "password": "TitkosJelszo2026!",
     "confirm": "TitkosJelszo2026!"
 }
