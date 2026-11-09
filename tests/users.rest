@@ -1,0 +1,124 @@
+@host = http://localhost
+@port = 3000
+@server = {{host}}:{{port}}/api/users
+
+@userID = 2
+@adminEmail = admintest@test.test
+@adminPassword = Admin123!@
+@token = {{login.response.body.token}}
+@adminToken = {{adminLogin.response.body.token}}
+
+### login
+
+# @name login
+
+POST {{server}}/login
+Content-Type: application/json
+
+{
+    "email": "tesztelematesztelnivalot@gmail.com",
+    "password": "TitkosJelszo2026!"
+}
+
+### register a new user
+
+# @name register
+
+POST {{server}}/register
+Content-Type: application/json
+
+{
+    "name": "Teszt Elek",
+    "email": "newuser@example.com",
+    "password": "TitkosJelszo2026!",
+    "confirm": "TitkosJelszo2026!"
+}
+
+### change password
+
+PATCH {{server}}/passmod
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "currentPassword": "TitkosJelszo2026!",
+    "newPassword": "UjTitkosJelszo2026!",
+    "confirmPassword": "UjTitkosJelszo2026!"
+}
+
+### get current user's profile
+
+GET {{server}}/profile
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+### update current user's profile
+
+PATCH {{server}}/profile
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+    "name": "Teszt Elek Updated"
+}
+
+### admin login
+
+# @name adminLogin
+
+POST {{server}}/login
+Content-Type: application/json
+
+{
+    "email": "{{adminEmail}}",
+    "password": "{{adminPassword}}"
+}
+
+### get all users (admin)
+
+GET {{server}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+### get user by ID (admin)
+
+GET {{server}}/{{userID}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+### create user (admin)
+
+# @name createUser
+
+POST {{server}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "name": "Admin Created User",
+    "email": "admin.created.user@example.com",
+    "password": "CreatedUserPassword2026!",
+    "role": "user"
+}
+
+### update user (admin)
+
+PATCH {{server}}/{{createUser.response.body.id}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+    "name": "Updated User Name"
+}
+
+### delete user (admin)
+
+DELETE {{server}}/{{createUser.response.body.id}}
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+### delete current user's profile (run last)
+
+DELETE {{server}}/profile
+Content-Type: application/json
+Authorization: Bearer {{token}}

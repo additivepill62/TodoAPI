@@ -12,7 +12,7 @@ router.post('/login', (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ error: '[LOGINMissingFields] Missing input fields' });
+        return res.status(400).json({ error: '[LOGINMissingReqFields] Missing required fields' });
     }
 
     db.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, SHA1(password)], (err, results) => {
@@ -39,26 +39,26 @@ router.post('/register', (req, res) => {
     const { name, email, password, confirm } = req.body;
 
     if (!name || !email || !password || !confirm) {
-        return res.status(400).json({ error: 'Name, email, password, and confirm are required' });
+        return res.status(400).json({ error: '[REGISTERMissingReqFields] Missing required fields' });
     }
     if (password !== confirm) {
-        return res.status(400).json({ error: 'Passwords do not match' });
+        return res.status(400).json({ error: '[REGISTERPasswordMismatchError] Passwords do not match' });
     }
 
     db.query('SELECT ID FROM users WHERE email = ?', [email], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[REGISTERLookupError] Failed to check email' +err });
         }
         if (results.length > 0) {
-            return res.status(409).json({ error: 'This email is already registered' });
+            return res.status(409).json({ error: '[REGISTEREmailExistsError] This email is already registered' });
         }
 
         db.query('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
             [name, email, SHA1(password), 'user'], (insertErr, insertResults) => {
                 if (insertErr) {
-                    return res.status(500).json({ error: insertErr.message });
+                    return res.status(500).json({ error: '[REGISTERCreateError] Failed to register user' });
                 }
-                return res.status(201).json({ message: 'User registered successfully', id: insertResults.insertId });
+                return res.status(201).json({ message: '[REGISTERSuccess] User registered successfully', id: insertResults.insertId });
             });
     });
 });
@@ -67,28 +67,28 @@ router.patch('/passmod', tokenCheck, (req, res) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-        return res.status(400).json({ error: 'Current password, new password, and confirmation are required' });
+        return res.status(400).json({ error: '[PASSMODMissingReqFields] Current password, new password, and confirmation are required' });
     }
     if (newPassword !== confirmPassword) {
-        return res.status(400).json({ error: 'New passwords do not match' });
+        return res.status(400).json({ error: '[PASSMODPasswordMismatchError] New passwords do not match' });
     }
 
     db.query('SELECT password FROM users WHERE ID = ?', [req.user.id], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[PASSMODLookupError] Failed to retrieve user' });
         }
         if (results.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: '[PASSMODUserNotFoundError] User not found' });
         }
         if (results[0].password !== SHA1(currentPassword)) {
-            return res.status(401).json({ error: 'Current password is incorrect' });
+            return res.status(401).json({ error: '[PASSMODInvalidPasswordError] Current password is incorrect' });
         }
 
         db.query('UPDATE users SET password = ? WHERE ID = ?', [SHA1(newPassword), req.user.id], (updateErr) => {
             if (updateErr) {
-                return res.status(500).json({ error: updateErr.message });
+                return res.status(500).json({ error: '[PASSMODUpdateError] Failed to update password' });
             }
-            return res.status(200).json({ message: 'Password updated successfully' });
+            return res.status(200).json({ message: '[PASSMODSuccess] Password updated successfully' });
         });
     });
 });
@@ -96,10 +96,10 @@ router.patch('/passmod', tokenCheck, (req, res) => {
 router.get('/profile', tokenCheck, (req, res) => {
     db.query(`SELECT ${publicUserFields} FROM users WHERE ID = ?`, [req.user.id], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[PROFILEGetError] Failed to retrieve profile' });
         }
         if (results.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: '[PROFILENotFoundError] User not found' });
         }
         return res.status(200).json(results[0]);
     });
@@ -108,21 +108,21 @@ router.get('/profile', tokenCheck, (req, res) => {
 router.patch('/profile', tokenCheck, (req, res) => {
     const fields = Object.keys(req.body);
     if (fields.length === 0 || fields.some(field => !editableProfileFields.has(field))) {
-        return res.status(400).json({ error: 'Provide profile fields to update: name or email' });
+        return res.status(400).json({ error: '[PROFILEMissingOrInvalidFieldsError] Provide profile fields to update: name or email' });
     }
 
     const updateProfile = () => {
         const assignments = fields.map(field => `${field} = ?`).join(', ');
         db.query(`UPDATE users SET ${assignments} WHERE ID = ?`, [...fields.map(field => req.body[field]), req.user.id], (updateErr) => {
             if (updateErr) {
-                return res.status(500).json({ error: updateErr.message });
+                return res.status(500).json({ error: '[PROFILEUpdateError] Failed to update profile' });
             }
             db.query(`SELECT ${publicUserFields} FROM users WHERE ID = ?`, [req.user.id], (selectErr, results) => {
                 if (selectErr) {
-                    return res.status(500).json({ error: selectErr.message });
+                    return res.status(500).json({ error: '[PROFILEGetError] Failed to retrieve updated profile' });
                 }
                 if (results.length === 0) {
-                    return res.status(404).json({ error: 'User not found' });
+                    return res.status(404).json({ error: '[PROFILENotFoundError] User not found' });
                 }
                 return res.status(200).json(results[0]);
             });
@@ -134,10 +134,10 @@ router.patch('/profile', tokenCheck, (req, res) => {
     }
     db.query('SELECT ID FROM users WHERE email = ? AND ID <> ?', [req.body.email, req.user.id], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[PROFILEEmailLookupError] Failed to check email' });
         }
         if (results.length > 0) {
-            return res.status(409).json({ error: 'This email is already registered' });
+            return res.status(409).json({ error: '[PROFILEEmailExistsError] This email is already registered' });
         }
         return updateProfile();
     });
@@ -146,19 +146,19 @@ router.patch('/profile', tokenCheck, (req, res) => {
 router.delete('/profile', tokenCheck, (req, res) => {
     db.query('DELETE FROM users WHERE ID = ?', [req.user.id], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[PROFILEDeleteError] Failed to delete profile' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: '[PROFILENotFoundError] User not found' });
         }
-        return res.status(200).json({ message: 'Profile deleted successfully' });
+        return res.status(200).json({ message: '[PROFILEDeleteSuccess] Profile deleted successfully' });
     });
 });
 
 router.get('/', adminCheck, (req, res) => {
     db.query(`SELECT ${publicUserFields} FROM users`, (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[GETAllUsersError] Failed to retrieve users' });
         }
         return res.status(200).json(results);
     });
@@ -167,10 +167,10 @@ router.get('/', adminCheck, (req, res) => {
 router.get('/:id', adminCheck, (req, res) => {
     db.query(`SELECT ${publicUserFields} FROM users WHERE ID = ?`, [req.params.id], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[GETUserError] Failed to retrieve user' });
         }
         if (results.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: '[GETUserNotFoundError] User not found' });
         }
         return res.status(200).json(results[0]);
     });
@@ -180,26 +180,26 @@ router.post('/', adminCheck, (req, res) => {
     const { name, email, password, role = 'user' } = req.body;
 
     if (!name || !email || !password) {
-        return res.status(400).json({ error: 'Name, email, and password are required' });
+        return res.status(400).json({ error: '[POSTUserMissingReqFields] Name, email, and password are required' });
     }
     if (!['user', 'admin'].includes(role)) {
-        return res.status(400).json({ error: 'Role must be user or admin' });
+        return res.status(400).json({ error: '[POSTUserInvalidRoleError] Role must be user or admin' });
     }
 
     db.query('SELECT ID FROM users WHERE email = ?', [email], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[POSTUserEmailLookupError] Failed to check email' });
         }
         if (results.length > 0) {
-            return res.status(409).json({ error: 'This email is already registered' });
+            return res.status(409).json({ error: '[POSTUserEmailExistsError] This email is already registered' });
         }
 
         db.query('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
             [name, email, SHA1(password), role], (insertErr, insertResults) => {
                 if (insertErr) {
-                    return res.status(500).json({ error: insertErr.message });
+                    return res.status(500).json({ error: '[POSTUserCreateError] Failed to create user' });
                 }
-                return res.status(201).json({ message: 'User created successfully', id: insertResults.insertId });
+                return res.status(201).json({ message: '[POSTUserSuccess] User created successfully', id: insertResults.insertId });
             });
     });
 });
@@ -207,10 +207,10 @@ router.post('/', adminCheck, (req, res) => {
 router.patch('/:id', adminCheck, (req, res) => {
     const fields = Object.keys(req.body);
     if (fields.length === 0 || fields.some(field => !editableUserFields.has(field))) {
-        return res.status(400).json({ error: 'Provide fields to update: name, email, password, or role' });
+        return res.status(400).json({ error: '[PATCHUserMissingOrInvalidFieldsError] Provide fields to update: name, email, password, or role' });
     }
     if ('role' in req.body && !['user', 'admin'].includes(req.body.role)) {
-        return res.status(400).json({ error: 'Role must be user or admin' });
+        return res.status(400).json({ error: '[PATCHUserInvalidRoleError] Role must be user or admin' });
     }
 
     const values = fields.map(field => field === 'password' ? SHA1(req.body[field]) : req.body[field]);
@@ -218,24 +218,24 @@ router.patch('/:id', adminCheck, (req, res) => {
 
     db.query(`UPDATE users SET ${assignments} WHERE ID = ?`, [...values, req.params.id], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[PATCHUserUpdateError] Failed to update user' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'User not found or no values changed' });
+            return res.status(404).json({ error: '[PATCHUserNotFoundError] User not found or no values changed' });
         }
-        return res.status(200).json({ message: 'User updated successfully' });
+        return res.status(200).json({ message: '[PATCHUserSuccess] User updated successfully' });
     });
 });
 
 router.delete('/:id', adminCheck, (req, res) => {
     db.query('DELETE FROM users WHERE ID = ?', [req.params.id], (err, results) => {
         if (err) {
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ error: '[DELETEUserError] Failed to delete user' });
         }
         if (results.affectedRows === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: '[DELETEUserNotFoundError] User not found' });
         }
-        return res.status(200).json({ message: 'User deleted successfully' });
+        return res.status(200).json({ message: '[DELETEUserSuccess] User deleted successfully' });
     });
 });
 
