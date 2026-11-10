@@ -8,6 +8,10 @@ const publicUserFields = 'ID, name, email, role, created_at, updated_at';
 const editableUserFields = new Set(['name', 'email', 'password', 'role']);
 const editableProfileFields = new Set(['name', 'email']);
 
+//-------------------------------------
+//AUTH ENDPOINTS
+//-------------------------------------
+
 router.post('/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -62,6 +66,10 @@ router.post('/register', (req, res) => {
             });
     });
 });
+
+//-------------------------------------
+//USER ENDPOINTS
+//-------------------------------------
 
 router.patch('/passmod', tokenCheck, (req, res) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
@@ -155,6 +163,10 @@ router.delete('/profile', tokenCheck, (req, res) => {
     });
 });
 
+//-------------------------------------
+//ADMIN ENDPOINTS
+//-------------------------------------
+
 router.get('/', adminCheck, (req, res) => {
     db.query(`SELECT ${publicUserFields} FROM users`, (err, results) => {
         if (err) {
@@ -173,34 +185,6 @@ router.get('/:id', adminCheck, (req, res) => {
             return res.status(404).json({ error: '[GETUserNotFoundError] User not found' });
         }
         return res.status(200).json(results[0]);
-    });
-});
-
-router.post('/', adminCheck, (req, res) => {
-    const { name, email, password, role = 'user' } = req.body;
-
-    if (!name || !email || !password) {
-        return res.status(400).json({ error: '[POSTUserMissingReqFields] Name, email, and password are required' });
-    }
-    if (!['user', 'admin'].includes(role)) {
-        return res.status(400).json({ error: '[POSTUserInvalidRoleError] Role must be user or admin' });
-    }
-
-    db.query('SELECT ID FROM users WHERE email = ?', [email], (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: '[POSTUserEmailLookupError] Failed to check email' });
-        }
-        if (results.length > 0) {
-            return res.status(409).json({ error: '[POSTUserEmailExistsError] This email is already registered' });
-        }
-
-        db.query('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-            [name, email, SHA1(password), role], (insertErr, insertResults) => {
-                if (insertErr) {
-                    return res.status(500).json({ error: '[POSTUserCreateError] Failed to create user' });
-                }
-                return res.status(201).json({ message: '[POSTUserSuccess] User created successfully', id: insertResults.insertId });
-            });
     });
 });
 
